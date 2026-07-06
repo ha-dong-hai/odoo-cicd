@@ -39,7 +39,7 @@ jobs:
 
       - name: Install with demo data and run test suite
         run: |
-          docker run --rm --network odoo-ci-net --entrypoint odoo-bin \
+          docker run --rm --network odoo-ci-net --entrypoint odoo \
             odoo-ci:${{ github.sha }} \
             -i "${{ steps.modules.outputs.modules || 'base' }}" \
             --test-enable --stop-after-init --log-level=test \

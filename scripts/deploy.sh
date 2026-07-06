@@ -74,7 +74,7 @@ production)
   if [ -n "${UPDATE_MODULES:-}" ]; then
     echo "==> running module update: ${UPDATE_MODULES}"
     if ! $COMPOSE run --rm "odoo-${TARGET_COLOR}" \
-          odoo-bin -u "${UPDATE_MODULES}" --stop-after-init \
+          odoo -u "${UPDATE_MODULES}" --stop-after-init \
           --db_host=db --db_user="${DB_USER}" --db_password="${DB_PASSWORD}" -d "${DB_NAME}"; then
       echo "==> module update failed, restoring database from pre-deploy backup" >&2
       LATEST="$(DATA_ROOT="$DATA_ROOT" bash scripts/latest_backup.sh production pre-deploy)"
