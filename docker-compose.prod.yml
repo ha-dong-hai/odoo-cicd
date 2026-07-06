@@ -8,6 +8,11 @@
 # reproduces Odoo.sh's own production build behavior: a failed build never
 # goes live, and the database is restored from the pre-deploy backup if
 # the failed attempt touched it.
+#
+# `name:` pins the Compose project name so it never collides with
+# docker-compose.staging.yml's identically-named `db` service when both
+# are run from the same checkout directory.
+name: odoo-cicd-production
 services:
   db:
     image: postgres:16

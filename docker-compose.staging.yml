@@ -3,6 +3,13 @@
 # scripts/restore_to_staging.sh and scripts/neutralize.sh). Routed by
 # Traefik's Docker provider via the labels below - staging doesn't need
 # blue/green, unlike production.
+#
+# `name:` pins the Compose project name so it never collides with
+# docker-compose.prod.yml's identically-named `db` service when both are
+# run from the same checkout directory (Compose otherwise derives the
+# project name from the current directory, which made it treat both
+# stacks as one project and "recreate" one's db as the other's).
+name: odoo-cicd-staging
 services:
   db:
     image: postgres:16

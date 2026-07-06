@@ -4,6 +4,7 @@
 #   - production: via the file provider, see dynamic/production.yml -
 #     this is what lets scripts/deploy.sh cut traffic over between the
 #     blue and green containers without touching Traefik's own config.
+name: odoo-cicd-traefik
 services:
   traefik:
     image: traefik:v3.1

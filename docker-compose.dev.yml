@@ -1,6 +1,7 @@
 # Local / development stack. Not used by CI (the ci-develop.yml workflow
 # runs ephemeral containers directly with `docker run`) - this file is for
 # running the same setup on a developer's own machine.
+name: odoo-cicd-dev
 services:
   db:
     image: postgres:16
