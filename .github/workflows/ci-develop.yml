@@ -1,0 +1,52 @@
+name: CI - Development
+
+# Mirrors an Odoo.sh "development build": fresh database from scratch,
+# demo data loaded, full test suite run. Nothing here is deployed or kept
+# - the container is thrown away at the end either way.
+
+on:
+  pull_request:
+    branches: [develop]
+  push:
+    branches: [develop]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build Odoo image
+        run: docker build -f docker/Dockerfile -t odoo-ci:${{ github.sha }} .
+
+      - name: Start ephemeral Postgres
+        run: |
+          docker network create odoo-ci-net
+          docker run -d --name ci-db --network odoo-ci-net \
+            -e POSTGRES_DB=postgres -e POSTGRES_USER=odoo -e POSTGRES_PASSWORD=odoo \
+            postgres:16
+          for i in $(seq 1 30); do
+            docker exec ci-db pg_isready -U odoo && break
+            sleep 2
+          done
+
+      - name: Determine modules to install and test
+        id: modules
+        # Falls back to "base" so the pipeline is provable before any
+        # custom module has been added under addons/.
+        run: echo "modules=$(ls addons 2>/dev/null | paste -sd, -)" >> "$GITHUB_OUTPUT"
+
+      - name: Install with demo data and run test suite
+        run: |
+          docker run --rm --network odoo-ci-net --entrypoint odoo-bin \
+            odoo-ci:${{ github.sha }} \
+            -i "${{ steps.modules.outputs.modules || 'base' }}" \
+            --test-enable --stop-after-init --log-level=test \
+            --db_host=ci-db --db_user=odoo --db_password=odoo -d ci_test
+
+      - name: Tear down ephemeral stack
+        if: always()
+        run: |
+          docker rm -f ci-db || true
+          docker network rm odoo-ci-net || true

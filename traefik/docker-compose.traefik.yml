@@ -1,0 +1,38 @@
+# Shared reverse proxy for the whole VPS - run once, independently of the
+# staging/production stacks. Terminates HTTPS (Let's Encrypt) and routes:
+#   - staging: via Docker-provider labels on the staging odoo service
+#   - production: via the file provider, see dynamic/production.yml -
+#     this is what lets scripts/deploy.sh cut traffic over between the
+#     blue and green containers without touching Traefik's own config.
+services:
+  traefik:
+    image: traefik:v3.1
+    container_name: traefik
+    restart: unless-stopped
+    command:
+      - --api.dashboard=true
+      - --providers.docker=true
+      - --providers.docker.exposedByDefault=false
+      - --providers.docker.network=proxy
+      - --providers.file.directory=/etc/traefik/dynamic
+      - --providers.file.watch=true
+      - --entrypoints.web.address=:80
+      - --entrypoints.web.http.redirections.entrypoint.to=websecure
+      - --entrypoints.web.http.redirections.entrypoint.scheme=https
+      - --entrypoints.websecure.address=:443
+      - --certificatesresolvers.letsencrypt.acme.email=${ACME_EMAIL}
+      - --certificatesresolvers.letsencrypt.acme.storage=/letsencrypt/acme.json
+      - --certificatesresolvers.letsencrypt.acme.httpchallenge.entrypoint=web
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./letsencrypt:/letsencrypt
+      - ./dynamic:/etc/traefik/dynamic
+    networks:
+      - proxy
+
+networks:
+  proxy:
+    external: true

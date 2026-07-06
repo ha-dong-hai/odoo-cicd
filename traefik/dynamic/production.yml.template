@@ -1,0 +1,19 @@
+# Rendered once at initial VPS setup (envsubst DOMAIN_PROD) into
+# traefik/dynamic/production.yml, which Traefik watches live. From then
+# on, scripts/deploy.sh only rewrites the `url:` line below via sed on
+# every production deploy - it never touches the Host() rule.
+http:
+  routers:
+    production:
+      rule: "Host(`${DOMAIN_PROD}`)"
+      entryPoints:
+        - websecure
+      tls:
+        certResolver: letsencrypt
+      service: production
+
+  services:
+    production:
+      loadBalancer:
+        servers:
+          - url: "http://production-odoo-blue:8069"

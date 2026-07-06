@@ -1,0 +1,8 @@
+[options]
+addons_path = /mnt/extra-addons
+data_dir = /var/lib/odoo
+admin_passwd = ${ODOO_MASTER_PASSWORD}
+proxy_mode = True
+workers = ${ODOO_WORKERS}
+max_cron_threads = 1
+list_db = False

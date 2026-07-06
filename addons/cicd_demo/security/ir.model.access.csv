@@ -1,0 +1,2 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_cicd_demo_greeting_user,cicd.demo.greeting.user,model_cicd_demo_greeting,base.group_user,1,1,1,1

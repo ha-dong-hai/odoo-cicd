@@ -1,0 +1,37 @@
+name: Deploy - Staging
+
+# Mirrors an Odoo.sh "staging build": the new image is deployed against a
+# freshly-refreshed, neutralized copy of production data rather than
+# staging's previous state - every push gets a clean comparison point.
+#
+# Runs on a self-hosted runner installed directly on your server: no SSH,
+# no container registry - the image is built and deployed on the same
+# machine that will run it. See README.md for runner setup.
+
+on:
+  push:
+    branches: [staging]
+
+concurrency:
+  group: deploy-staging
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: self-hosted
+    environment: staging
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build staging image
+        run: docker build -f docker/Dockerfile -t "odoo-cicd:staging-${{ github.sha }}" .
+
+      - name: Refresh staging database from the latest production backup
+        run: |
+          bash scripts/restore_to_staging.sh
+          bash scripts/neutralize.sh staging
+
+      - name: Deploy new image to staging (auto-rollback on failed health check)
+        env:
+          IMAGE: odoo-cicd:staging-${{ github.sha }}
+        run: bash scripts/deploy.sh staging

@@ -1,0 +1,49 @@
+name: Deploy - Production
+
+# Mirrors an Odoo.sh "production build": backup first, only run a module
+# update if a manifest version actually changed, bring the new revision
+# up alongside the old one, and only cut traffic over once it proves
+# healthy. A failed attempt never reaches real traffic and the database
+# is restored from the pre-deploy backup if the update touched it.
+#
+# Runs on a self-hosted runner installed directly on your server: no SSH,
+# no container registry - the image is built and deployed on the same
+# machine that will run it. See README.md for runner setup.
+
+on:
+  push:
+    branches: [main]
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: self-hosted
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Build production image
+        run: docker build -f docker/Dockerfile -t "odoo-cicd:prod-${{ github.sha }}" .
+
+      - name: Detect modules with a bumped version
+        id: updates
+        run: |
+          PREV_SHA="$(git rev-parse HEAD~1)"
+          MODULES="$(bash scripts/detect_module_updates.sh "$PREV_SHA" "${{ github.sha }}")"
+          echo "modules=$MODULES" >> "$GITHUB_OUTPUT"
+          echo "Modules to update: ${MODULES:-<none - no version bump, no update>}"
+
+      - name: Backup production before touching anything
+        run: bash scripts/backup.sh pre-deploy
+
+      - name: Deploy new revision (auto-rollback on failed update or health check)
+        env:
+          IMAGE: odoo-cicd:prod-${{ github.sha }}
+          UPDATE_MODULES: ${{ steps.updates.outputs.modules }}
+          DB_PASSWORD: ${{ secrets.PRODUCTION_DB_PASSWORD }}
+        run: bash scripts/deploy.sh production

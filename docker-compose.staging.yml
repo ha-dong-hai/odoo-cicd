@@ -1,0 +1,63 @@
+# Staging stack: a single Odoo instance whose database is periodically
+# refreshed from the latest production backup and neutralized (see
+# scripts/restore_to_staging.sh and scripts/neutralize.sh). Routed by
+# Traefik's Docker provider via the labels below - staging doesn't need
+# blue/green, unlike production.
+services:
+  db:
+    image: postgres:16
+    container_name: staging-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: postgres
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - staging-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  odoo:
+    image: ${IMAGE}
+    container_name: staging-odoo
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      HOST: db
+      PORT: "5432"
+      USER: ${DB_USER}
+      PASSWORD: ${DB_PASSWORD}
+      ODOO_MASTER_PASSWORD: ${ODOO_MASTER_PASSWORD}
+      ODOO_WORKERS: "0"
+    volumes:
+      - staging-odoo-data:/var/lib/odoo
+    ports:
+      # Bound to localhost only - deploy.sh health-checks this directly,
+      # public traffic only ever goes through Traefik.
+      - "127.0.0.1:8080:8069"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.staging.rule=Host(`${DOMAIN_STAGING}`)"
+      - "traefik.http.routers.staging.entrypoints=websecure"
+      - "traefik.http.routers.staging.tls.certresolver=letsencrypt"
+      - "traefik.http.services.staging.loadbalancer.server.port=8069"
+    networks:
+      - default
+      - proxy
+
+volumes:
+  staging-db-data:
+    name: staging-db-data
+  staging-odoo-data:
+    # Fixed name so scripts/backup.sh, restore_from_backup.sh, etc. can
+    # reference it directly instead of guessing Compose's project prefix.
+    name: staging-odoo-data
+
+networks:
+  proxy:
+    external: true

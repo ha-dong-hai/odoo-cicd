@@ -1,0 +1,12 @@
+# Real secrets - only the *.example templates are tracked.
+.env.staging
+.env.production
+traefik/.env
+
+# Server-local, generated/runtime state - not part of the repo's source of truth.
+traefik/dynamic/production.yml
+production/.active_color
+backups/
+
+__pycache__/
+*.pyc

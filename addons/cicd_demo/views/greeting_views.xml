@@ -1,0 +1,21 @@
+<odoo>
+    <record id="view_cicd_demo_greeting_list" model="ir.ui.view">
+        <field name="name">cicd.demo.greeting.list</field>
+        <field name="model">cicd.demo.greeting</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="name"/>
+                <field name="message"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="action_cicd_demo_greeting" model="ir.actions.act_window">
+        <field name="name">CI/CD Demo Greetings</field>
+        <field name="res_model">cicd.demo.greeting</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <menuitem id="menu_cicd_demo_root" name="CI/CD Demo" sequence="100"/>
+    <menuitem id="menu_cicd_demo_greeting" name="Greetings" parent="menu_cicd_demo_root" action="action_cicd_demo_greeting"/>
+</odoo>

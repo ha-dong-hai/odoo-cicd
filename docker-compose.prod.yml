@@ -1,0 +1,82 @@
+# Production stack: two Odoo "color" slots (blue/green) sharing one
+# database and one filestore volume. Only one color is ever started and
+# receiving traffic at a time - scripts/deploy.sh brings the idle color up
+# on the new image, health-checks it, and only then flips Traefik's
+# dynamic routing (traefik/dynamic/production.yml) over to it. If the new
+# color fails its health check, it's torn down and the previously active
+# color - which was never stopped - keeps serving traffic untouched. This
+# reproduces Odoo.sh's own production build behavior: a failed build never
+# goes live, and the database is restored from the pre-deploy backup if
+# the failed attempt touched it.
+services:
+  db:
+    image: postgres:16
+    container_name: production-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: postgres
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - production-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  odoo-blue:
+    image: ${IMAGE_BLUE}
+    container_name: production-odoo-blue
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      HOST: db
+      PORT: "5432"
+      USER: ${DB_USER}
+      PASSWORD: ${DB_PASSWORD}
+      ODOO_MASTER_PASSWORD: ${ODOO_MASTER_PASSWORD}
+      ODOO_WORKERS: "2"
+    volumes:
+      - production-odoo-data:/var/lib/odoo
+    ports:
+      # Localhost-only - deploy.sh health-checks the idle color directly
+      # here before Traefik ever sees it.
+      - "127.0.0.1:8081:8069"
+    networks:
+      - default
+      - proxy
+
+  odoo-green:
+    image: ${IMAGE_GREEN}
+    container_name: production-odoo-green
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      HOST: db
+      PORT: "5432"
+      USER: ${DB_USER}
+      PASSWORD: ${DB_PASSWORD}
+      ODOO_MASTER_PASSWORD: ${ODOO_MASTER_PASSWORD}
+      ODOO_WORKERS: "2"
+    volumes:
+      - production-odoo-data:/var/lib/odoo
+    ports:
+      - "127.0.0.1:8082:8069"
+    networks:
+      - default
+      - proxy
+
+volumes:
+  production-db-data:
+    name: production-db-data
+  production-odoo-data:
+    name: production-odoo-data
+
+networks:
+  proxy:
+    external: true

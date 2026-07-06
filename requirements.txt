@@ -1,0 +1,6 @@
+# Extra Python dependencies needed by modules under addons/.
+# Installed automatically into the image by docker/Dockerfile - same role
+# as the requirements.txt Odoo.sh looks for at the repository root.
+#
+# Example:
+# phonenumbers==8.13.37

@@ -1,0 +1,42 @@
+# Local / development stack. Not used by CI (the ci-develop.yml workflow
+# runs ephemeral containers directly with `docker run`) - this file is for
+# running the same setup on a developer's own machine.
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: postgres
+      POSTGRES_USER: odoo
+      POSTGRES_PASSWORD: odoo
+    volumes:
+      - dev-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U odoo"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  odoo:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      HOST: db
+      PORT: "5432"
+      USER: odoo
+      PASSWORD: odoo
+      ODOO_MASTER_PASSWORD: dev-master-password
+      ODOO_WORKERS: "0"
+    ports:
+      - "8069:8069"
+    volumes:
+      - dev-odoo-data:/var/lib/odoo
+      # Live-mount addons for fast local iteration without rebuilding the image.
+      - ./addons:/mnt/extra-addons
+
+volumes:
+  dev-db-data:
+  dev-odoo-data:
